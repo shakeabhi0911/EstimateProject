@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Estimate Pending – Cost Management System
 ### Tata Steel UISL | ASP.NET Core 3.1 MVC
 
@@ -155,3 +156,7 @@ T_EstimateDetail   -- Line items per estimate (linked by EstimateID)
 | Frontend | HTML5, CSS3, Bootstrap 4, jQuery |
 | Session | ASP.NET Core Session (memory-backed) |
 | IDE | Visual Studio 2019 |
+=======
+# EstimateProject
+Hello My name is Abhishek Das a student from Siksha O Anusandhan, Institute Of Technical Education &amp; Research , pursuing Btech in Computer Science &amp; Information Technology, and this my internship project tilted "Estimate Project" which i did in TATAUISL during my internship days  and these are the files crated and used to build this project.
+>>>>>>> afc7edfe1da7225f5f1be66c163f71daafccc3ce
