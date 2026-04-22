@@ -1,0 +1,262 @@
+@model List<EstimateProject.Models.EstimateRow>
+@{
+    ViewData["Title"] = "Cost Book";
+    Layout = null; // Standalone page for new tab / print
+    decimal grandTotal  = Model?.Sum(r => r.TotalCost) ?? 0;
+    int     mismatchCnt = Model?.Count(r => r.MismatchFlag) ?? 0;
+    int     verifiedCnt = Model?.Count(r => r.IsVerified)   ?? 0;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Cost Book – Tata Steel UISL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700&display=swap"
+          rel="stylesheet"/>
+    <style>
+        :root {
+            --steel-blue: #00467f;
+            --steel-mid: #0065b3;
+            --accent: #f5a623;
+            --ok: #27ae60;
+            --warn: #e74c3c;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Barlow', sans-serif;
+            background: #f0f4f8;
+            color: #222;
+            padding: 24px;
+        }
+        .cost-book-wrapper {
+            max-width: 1100px; margin: 0 auto;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 24px rgba(0,70,127,.15);
+            overflow: hidden;
+        }
+        /* Header */
+        .cb-header {
+            background: linear-gradient(135deg, var(--steel-blue) 0%, var(--steel-mid) 100%);
+            color: #fff;
+            padding: 28px 36px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .cb-header h1 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 2rem; letter-spacing: 1px;
+        }
+        .cb-header .meta { font-size: .85rem; opacity: .85; margin-top: 4px; }
+        .cb-header .print-btn {
+            background: var(--accent); border: none; color: #fff;
+            padding: 8px 20px; border-radius: 4px; font-weight: 700;
+            cursor: pointer; font-size: .9rem;
+        }
+        .cb-header .print-btn:hover { background: #e0921a; }
+
+        /* Summary cards */
+        .summary-row {
+            display: flex; gap: 16px;
+            padding: 20px 36px;
+            background: #f7f9fc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .sum-card {
+            flex: 1; background: #fff; border-radius: 6px;
+            padding: 14px 18px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .sum-card .num { font-size: 1.6rem; font-weight: 700; color: var(--steel-blue); }
+        .sum-card .lbl { font-size: .75rem; color: #666; margin-top: 2px; }
+        .sum-card.warn .num { color: var(--warn); }
+        .sum-card.ok   .num { color: var(--ok); }
+        .sum-card.grand .num { color: var(--accent); font-size: 1.4rem; }
+
+        /* Table */
+        .cb-body { padding: 24px 36px 36px; }
+        table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+        thead th {
+            background: var(--steel-blue); color: #fff;
+            padding: 10px 12px; text-align: left;
+            font-weight: 600;
+        }
+        tbody tr:nth-child(odd) { background: #f7f9fc; }
+        tbody tr:hover { background: #e8f0fb; }
+        tbody td { padding: 9px 12px; border-bottom: 1px solid #e8edf3; vertical-align: middle; }
+        tfoot td {
+            background: #00467f; color: #fff;
+            padding: 10px 12px; font-weight: 700;
+        }
+        .badge-ok {
+            background: #d4edda; color: var(--ok);
+            padding: 3px 8px; border-radius: 12px; font-size: .78rem; font-weight: 600;
+        }
+        .badge-mm {
+            background: #fde8e8; color: var(--warn);
+            padding: 3px 8px; border-radius: 12px; font-size: .78rem; font-weight: 600;
+        }
+        .badge-pend {
+            background: #fff3cd; color: #856404;
+            padding: 3px 8px; border-radius: 12px; font-size: .78rem; font-weight: 600;
+        }
+        .reason-text { font-size: .78rem; color: var(--warn); margin-top: 3px; }
+
+        /* Mismatch section */
+        .section-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 1.1rem; color: var(--steel-blue);
+            margin: 28px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid var(--steel-blue);
+        }
+        .no-data { text-align: center; padding: 40px; color: #aaa; font-size: 1rem; }
+
+        @@media print {
+            body { background: #fff; padding: 0; }
+            .cost-book-wrapper { box-shadow: none; }
+            .print-btn { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="cost-book-wrapper">
+
+    <!-- Header -->
+    <div class="cb-header">
+        <div>
+            <h1>📋 Cost Book Report</h1>
+            <div class="meta">
+                Tata Steel UISL &nbsp;·&nbsp;
+                Generated: @DateTime.Now.ToString("dd-MMM-yyyy HH:mm") &nbsp;·&nbsp;
+                Estimate Pending – Material Master
+            </div>
+        </div>
+        <button class="print-btn" onclick="window.print()">🖨 Print</button>
+    </div>
+
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="no-data">
+            <p>No estimate data available. Import an Excel file from the main screen first.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Summary -->
+        <div class="summary-row">
+            <div class="sum-card">
+                <div class="num">@Model.Count</div>
+                <div class="lbl">Total Items</div>
+            </div>
+            <div class="sum-card ok">
+                <div class="num">@verifiedCnt</div>
+                <div class="lbl">Verified</div>
+            </div>
+            <div class="sum-card warn">
+                <div class="num">@mismatchCnt</div>
+                <div class="lbl">Mismatches</div>
+            </div>
+            <div class="sum-card grand">
+                <div class="num">₹@grandTotal.ToString("N2")</div>
+                <div class="lbl">Grand Total</div>
+            </div>
+        </div>
+
+        <div class="cb-body">
+            <!-- Full estimate table -->
+            <div class="section-title">Complete Estimate Details</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item Description</th>
+                        <th>UOM</th>
+                        <th>Qty</th>
+                        <th>Material Cost (₹)</th>
+                        <th>Service Cost (₹)</th>
+                        <th>Total Cost (₹)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model)
+                    {
+                        <tr>
+                            <td>@row.SerialNo</td>
+                            <td>@row.ItemDesc</td>
+                            <td>@row.UOM</td>
+                            <td>@row.Quantity.ToString("N3")</td>
+                            <td>@row.MaterialCost.ToString("N2")</td>
+                            <td>@row.ServiceCost.ToString("N2")</td>
+                            <td><strong>@row.TotalCost.ToString("N2")</strong></td>
+                            <td>
+                                @if (row.MismatchFlag)
+                                {
+                                    <span class="badge-mm">⚠ Mismatch</span>
+                                    @if (!string.IsNullOrEmpty(row.MismatchReason))
+                                    {
+                                        <div class="reason-text">@row.MismatchReason</div>
+                                    }
+                                }
+                                else if (row.IsVerified)
+                                {
+                                    <span class="badge-ok">✓ Verified</span>
+                                }
+                                else
+                                {
+                                    <span class="badge-pend">Pending</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align:right">Grand Total</td>
+                        <td>₹@grandTotal.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            @if (mismatchCnt > 0)
+            {
+                <!-- Mismatch-only section -->
+                <div class="section-title" style="color:var(--warn); border-color:var(--warn)">
+                    ⚠ Mismatch Details (@mismatchCnt item@(mismatchCnt > 1 ? "s" : ""))
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Item Description</th>
+                            <th>UOM</th>
+                            <th>Material Cost (₹)</th>
+                            <th>Service Cost (₹)</th>
+                            <th>Total (₹)</th>
+                            <th>Mismatch Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Where(r => r.MismatchFlag))
+                        {
+                            <tr>
+                                <td>@row.SerialNo</td>
+                                <td>@row.ItemDesc</td>
+                                <td>@row.UOM</td>
+                                <td>@row.MaterialCost.ToString("N2")</td>
+                                <td>@row.ServiceCost.ToString("N2")</td>
+                                <td><strong>@row.TotalCost.ToString("N2")</strong></td>
+                                <td style="color:var(--warn)">@row.MismatchReason</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    }
+</div>
+</body>
+</html>

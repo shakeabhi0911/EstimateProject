@@ -1,0 +1,58 @@
+﻿# =========================
+# Build folders
+# =========================
+bin/
+obj/
+
+# =========================
+# User-specific files
+# =========================
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Visual Studio cache
+# =========================
+.vs/
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# Environment & secrets (VERY IMPORTANT)
+# =========================
+.env
+appsettings.Development.json
+
+# =========================
+# Database files (if any local DB used)
+# =========================
+*.mdf
+*.ldf
+
+# =========================
+# Node / frontend (if any npm used)
+# =========================
+node_modules/
+
+# =========================
+# Published output
+# =========================
+publish/
+wwwroot/dist/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp

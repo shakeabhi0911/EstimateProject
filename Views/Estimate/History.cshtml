@@ -1,0 +1,76 @@
+@model List<EstimateProject.Models.EstimateHistoryRow>
+@{
+    ViewData["Title"] = "Estimate History";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="page-header-bar">
+    <div class="container-fluid px-4">
+        <h1 class="page-title">
+            <i class="fas fa-history mr-2"></i>Submission History
+        </h1>
+        <p class="page-subtitle">All previously submitted estimates</p>
+    </div>
+</div>
+
+<div class="container-fluid px-4 mt-3">
+    <div class="table-card">
+        @if (Model == null || Model.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                <h4>No submissions yet</h4>
+                <p>Submitted estimates will appear here.</p>
+                <a href="/Estimate/Index" class="btn btn-est-primary mt-2">
+                    <i class="fas fa-plus mr-1"></i> Create Estimate
+                </a>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table est-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Estimate No.</th>
+                            <th>Submitted By</th>
+                            <th>Date &amp; Time</th>
+                            <th>Items</th>
+                            <th>Total Cost (₹)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Count; i++)
+                        {
+                            var h = Model[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td><strong>@h.EstimateNo</strong></td>
+                                <td>@h.SubmittedBy</td>
+                                <td>@h.SubmittedOn.ToString("dd-MMM-yyyy HH:mm")</td>
+                                <td>@h.ItemCount</td>
+                                <td><strong>₹@h.TotalCost.ToString("N2")</strong></td>
+                                <td>
+                                    <span class="badge badge-ok">
+                                        <i class="fas fa-check"></i> @h.Status
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="grand-total-row">
+                            <td colspan="5" class="text-right font-weight-bold">Grand Total</td>
+                            <td class="font-weight-bold">
+                                ₹@Model.Sum(h => h.TotalCost).ToString("N2")
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+    </div>
+</div>

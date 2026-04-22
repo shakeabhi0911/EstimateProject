@@ -1,0 +1,253 @@
+@model EstimateProject.Models.EstimateViewModel
+@{
+    ViewData["Title"] = "Estimate Pending";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<!-- ══ PAGE HEADER ═════════════════════════════════════════════ -->
+<div class="page-header-bar">
+    <div class="container-fluid px-4">
+        <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+                <h1 class="page-title">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i>
+                    Estimate Pending
+                </h1>
+                <p class="page-subtitle">Material Cost Verification &amp; Submission</p>
+            </div>
+            @if (Model.HasData)
+            {
+                <div class="header-stats d-flex">
+                    <div class="stat-badge">
+                        <span class="stat-num">@Model.Rows.Count</span>
+                        <span class="stat-lbl">Items</span>
+                    </div>
+                    <div class="stat-badge">
+                        <span class="stat-num">@Model.VerifiedCount</span>
+                        <span class="stat-lbl">Verified</span>
+                    </div>
+                    <div class="stat-badge @(Model.MismatchCount > 0 ? "stat-warn" : "")">
+                        <span class="stat-num">@Model.MismatchCount</span>
+                        <span class="stat-lbl">Mismatches</span>
+                    </div>
+                    <div class="stat-badge stat-total">
+                        <span class="stat-num">₹@Model.GrandTotal.ToString("N2")</span>
+                        <span class="stat-lbl">Grand Total</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ══ FLASH MESSAGES ══════════════════════════════════════════ -->
+@if (!string.IsNullOrEmpty(Model.SubmitMessage))
+{
+    <div class="container-fluid px-4 mt-3">
+        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show d-flex align-items-center" role="alert">
+            <i class="fas @(Model.IsSuccess ? "fa-check-circle" : "fa-exclamation-triangle") mr-2"></i>
+            <span>@Model.SubmitMessage</span>
+            <button type="button" class="close ml-auto" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    </div>
+}
+
+<!-- ══ TOOLBAR ════════════════════════════════════════════════ -->
+<div class="container-fluid px-4 mt-3">
+    <div class="toolbar-card">
+        <div class="toolbar-group">
+            <!-- Import -->
+            <label class="btn btn-est-primary" for="excelFileInput"
+                   title="Upload Excel file to import estimate rows">
+                <i class="fas fa-file-excel mr-1"></i> Import Excel
+            </label>
+            <form id="importForm" asp-action="Import" method="post"
+                  enctype="multipart/form-data" style="display:none">
+                <input id="excelFileInput" name="excelFile" type="file"
+                       accept=".xlsx,.xls" />
+            </form>
+
+            <!-- Download Template -->
+            <a class="btn btn-est-outline" href="/Estimate/DownloadTemplate"
+               title="Download blank Excel template">
+                <i class="fas fa-download mr-1"></i> Download Template
+            </a>
+
+            @if (Model.HasData)
+            {
+                <!-- Verify -->
+                <button id="btnVerify" class="btn btn-est-info"
+                        title="Verify all rows against material master">
+                    <i class="fas fa-check-double mr-1"></i> Verify
+                </button>
+
+                <!-- Submit -->
+                <button id="btnSubmit" class="btn btn-est-success"
+                        title="Submit estimate to database">
+                    <i class="fas fa-paper-plane mr-1"></i> Submit
+                </button>
+
+                <!-- Cost Book -->
+                <a class="btn btn-est-secondary" href="/Estimate/CostBook"
+                   target="_blank" title="Open cost book in new tab">
+                    <i class="fas fa-book-open mr-1"></i> Cost Book
+                </a>
+
+                <!-- Remove All -->
+                <button id="btnRemoveAll" class="btn btn-est-danger"
+                        title="Clear all estimate data">
+                    <i class="fas fa-trash-alt mr-1"></i> Remove All
+                </button>
+            }
+        </div>
+
+        <!-- Add Item (manual) -->
+        <div class="toolbar-group ml-auto">
+            <button id="btnAddItem" class="btn btn-est-add"
+                    title="Add a blank row manually">
+                <i class="fas fa-plus mr-1"></i> Add Item
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MAIN TABLE ═════════════════════════════════════════════ -->
+<div class="container-fluid px-4 mt-3">
+    <div class="table-card">
+
+        <!-- Verification status bar -->
+        <div id="verifyStatusBar" class="verify-status-bar d-none">
+            <span id="verifyMsg"></span>
+        </div>
+
+        <!-- Loading overlay -->
+        <div id="tableLoader" class="table-loader d-none">
+            <div class="loader-inner">
+                <div class="spinner-border text-primary" role="status"></div>
+                <span class="ml-2">Processing…</span>
+            </div>
+        </div>
+
+        @if (!Model.HasData)
+        {
+            <!-- Empty state -->
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+                <h4>No estimate data yet</h4>
+                <p>Import an Excel file or click <strong>Add Item</strong> to start manually.</p>
+            </div>
+        }
+
+        <div id="tableWrapper" class="@(!Model.HasData ? "d-none" : "")">
+            <div class="table-responsive">
+                <table class="table est-table" id="estimateTable">
+                    <thead>
+                        <tr>
+                            <th class="col-sno">#</th>
+                            <th class="col-desc">Item Description</th>
+                            <th class="col-uom">UOM</th>
+                            <th class="col-qty">Quantity</th>
+                            <th class="col-mat">Material Cost (₹)</th>
+                            <th class="col-svc">Service Cost (₹)</th>
+                            <th class="col-tot">Total Cost (₹)</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-action">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="estimateBody">
+                        @if (Model.HasData)
+                        {
+                            foreach (var row in Model.Rows)
+                            {
+                                <tr class="est-row @(row.MismatchFlag ? "row-mismatch" : row.IsVerified ? "row-ok" : "")"
+                                    data-serial="@row.SerialNo">
+                                    <td class="col-sno sno-cell">@row.SerialNo</td>
+                                    <td class="col-desc">
+                                        <input type="text" class="form-control form-control-sm cell-input inp-desc"
+                                               value="@row.ItemDesc" placeholder="Item description" />
+                                    </td>
+                                    <td class="col-uom">
+                                        <input type="text" class="form-control form-control-sm cell-input inp-uom"
+                                               value="@row.UOM" placeholder="KG / NOS" style="max-width:80px"/>
+                                    </td>
+                                    <td class="col-qty">
+                                        <input type="number" step="0.001" min="0"
+                                               class="form-control form-control-sm cell-input inp-qty"
+                                               value="@row.Quantity" />
+                                    </td>
+                                    <td class="col-mat">
+                                        <input type="number" step="0.01" min="0"
+                                               class="form-control form-control-sm cell-input inp-mat"
+                                               value="@row.MaterialCost" />
+                                    </td>
+                                    <td class="col-svc">
+                                        <input type="number" step="0.01" min="0"
+                                               class="form-control form-control-sm cell-input inp-svc"
+                                               value="@row.ServiceCost" />
+                                    </td>
+                                    <td class="col-tot total-cell">
+                                        ₹@row.TotalCost.ToString("N2")
+                                    </td>
+                                    <td class="col-status status-cell">
+                                        @if (row.MismatchFlag)
+                                        {
+                                            <span class="badge badge-mismatch" title="@row.MismatchReason">
+                                                <i class="fas fa-exclamation-triangle"></i> Mismatch
+                                            </span>
+                                        }
+                                        else if (row.IsVerified)
+                                        {
+                                            <span class="badge badge-ok">
+                                                <i class="fas fa-check"></i> Verified
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge badge-pending">Pending</span>
+                                        }
+                                    </td>
+                                    <td class="col-action">
+                                        <button class="btn btn-sm btn-remove-row" title="Remove this row">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="grand-total-row">
+                            <td colspan="6" class="text-right font-weight-bold">Grand Total</td>
+                            <td id="grandTotalCell" class="font-weight-bold">
+                                ₹@Model.GrandTotal.ToString("N2")
+                            </td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ SUBMIT SUCCESS MODAL ════════════════════════════════════ -->
+<div class="modal fade" id="successModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content est-modal">
+            <div class="modal-body text-center py-5">
+                <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+                <h4 class="mt-3 mb-1" id="modalEstNo"></h4>
+                <p class="text-muted" id="modalMsg"></p>
+                <p class="grand-total-display" id="modalTotal"></p>
+                <button type="button" class="btn btn-est-primary mt-3"
+                        data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="~/js/estimate.js"></script>
+}
